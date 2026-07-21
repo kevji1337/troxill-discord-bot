@@ -11,7 +11,7 @@
   "license": "ISC",
   "type": "commonjs",
   "engines": {
-    "node": ">=22.0.0"
+    "node": "22"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.1",
