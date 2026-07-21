@@ -199,7 +199,7 @@ function startAdminServer(client) {
     app.use(express.static(frontendDist));
 
     // Fallback page router for SPA history mode (React Router)
-    app.get('*', (req, res) => {
+    app.get('/*all', (req, res) => {
         const indexHtml = path.join(frontendDist, 'index.html');
         if (fs.existsSync(indexHtml)) {
             res.sendFile(indexHtml);
