@@ -4,3 +4,5 @@ data/
 .env.*
 !.env.example
 .idea/
+dist/
+/frontend/dist/

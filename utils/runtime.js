@@ -1,10 +1,10 @@
 const { ChannelType, PermissionFlagsBits } = require('discord.js');
 
-const REQUIRED_STRING_KEYS = ['DISCORD_TOKEN'];
-const REQUIRED_SNOWFLAKE_KEYS = ['CLIENT_ID', 'GUILD_ID', 'TICKET_CATEGORY_ID', 'CURATOR_ROLE_ID', 'MEDIA_MANAGER_ROLE_ID'];
+const REQUIRED_STRING_KEYS = ['DISCORD_TOKEN', 'DISCORD_OAUTH_CLIENT_SECRET', 'DISCORD_OAUTH_REDIRECT_URI', 'SESSION_SECRET'];
+const REQUIRED_SNOWFLAKE_KEYS = ['CLIENT_ID', 'GUILD_ID', 'TICKET_CATEGORY_ID', 'CURATOR_ROLE_ID', 'MEDIA_MANAGER_ROLE_ID', 'DISCORD_OAUTH_CLIENT_ID'];
 const REQUIRED_SNOWFLAKE_LIST_KEYS = ['MODERATOR_ROLE_IDS'];
 const OPTIONAL_SNOWFLAKE_KEYS = ['LOG_CHANNEL_ID', 'TICKET_PANEL_OWNER_ID', 'STATUS_PANEL_OWNER_ID'];
-const OPTIONAL_SNOWFLAKE_LIST_KEYS = ['PING_ROLE_IDS', 'TICKET_VIEW_ROLE_IDS'];
+const OPTIONAL_SNOWFLAKE_LIST_KEYS = ['PING_ROLE_IDS', 'TICKET_VIEW_ROLE_IDS', 'ADMIN_DISCORD_IDS'];
 const BOOLEAN_DEFAULTS = {
     ENABLE_EXTERNAL_TICKET_EXPORT: 'false',
     TRANSCRIPT_SAVE_IMAGES: 'false',
@@ -12,7 +12,8 @@ const BOOLEAN_DEFAULTS = {
     DM_TICKET_FEEDBACK: 'true'
 };
 const INTEGER_DEFAULTS = {
-    TRANSCRIPT_LIMIT: '2000'
+    TRANSCRIPT_LIMIT: '2000',
+    PORT: '1784'
 };
 
 function normalizeEnvValue(value) {
@@ -101,6 +102,11 @@ function validateRuntimeEnv(env = process.env) {
     const transcriptLimit = Number(env.TRANSCRIPT_LIMIT);
     if (!Number.isFinite(transcriptLimit)) {
         errors.push('TRANSCRIPT_LIMIT must be a number');
+    }
+
+    const port = Number(env.PORT);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        errors.push('PORT must be an integer between 1 and 65535');
     }
 
     const exportEnabled = normalizeEnvValue(env.ENABLE_EXTERNAL_TICKET_EXPORT).toLowerCase() === 'true';

@@ -15,9 +15,43 @@ const GUILD_ID = normalizeEnvValue(process.env.GUILD_ID);
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMembers
   ],
   partials: [Partials.Channel]
+});
+
+/* ===== CAMPAIGN SUBSYSTEM ===== */
+const startAdminServer = require('./server/app');
+const db = require('./database/campaignDb');
+
+client.once('ready', async () => {
+  try {
+    // 1. Initialize SQLite Database
+    db.getDb();
+    console.log('✅ SQLite campaign database initialized.');
+
+    // 2. Recovery logic: reset recipients stuck in PROCESSING to PENDING
+    const resetCount = db.resetAllProcessingRecipients();
+    if (resetCount > 0) {
+      console.log(`🔄 Recovered ${resetCount} processing campaign recipients back to PENDING.`);
+    }
+
+    // 3. Recovery logic: Auto-paused recovery: any campaign that was RUNNING when bot stopped should be paused
+    const campaigns = db.listCampaigns();
+    for (const c of campaigns) {
+      if (c.status === 'RUNNING') {
+        db.updateCampaign(c.id, { status: 'PAUSED', paused_at: Date.now() });
+        db.logCampaignEvent(c.id, 'RECOVERED_PAUSED', 'Campaign automatically paused on startup due to previous crash/restart. Please resume manually.');
+        console.log(`🔄 Campaign ${c.id} ("${c.name}") recovered and auto-paused on startup.`);
+      }
+    }
+
+    // 4. Start Web Admin Express Server
+    startAdminServer(client);
+  } catch (err) {
+    console.error('❌ Failed to initialize campaign subsystem on startup:', err);
+  }
 });
 
 client.commands = new Collection();
