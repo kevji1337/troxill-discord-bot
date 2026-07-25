@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const db = require('../database/campaignDb');
 const apiRoutes = require('./routes/api');

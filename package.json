@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "npm --prefix frontend install && npm --prefix frontend run build",
     "test": "node --test"
   },
   "keywords": [],
