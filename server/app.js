@@ -13,6 +13,7 @@ const { PermissionFlagsBits } = require('discord.js');
 
 function startAdminServer(client) {
     const app = express();
+    app.set('trust proxy', 1);
     const port = Number(process.env.PORT) || 1784;
     const host = process.env.HOST || '0.0.0.0';
     const sessionSecret = process.env.SESSION_SECRET || 'troxill-session-fallback-secret-key-321';
