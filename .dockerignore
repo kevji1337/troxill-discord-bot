@@ -1,0 +1,8 @@
+node_modules
+frontend/node_modules
+data
+.env
+.env.*
+.git
+.idea
+scratch
