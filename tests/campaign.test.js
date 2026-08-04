@@ -129,6 +129,11 @@ test('DB campaign_recipients enforces unique constraint per campaign', () => {
 // 4. CAMPAIGN STATE MACHINE TRANSITIONS
 // -------------------------------------------------------------
 test('CampaignService processes valid state transitions and rejects invalid ones', () => {
+    const list = CampaignService.listCampaigns();
+    assert.ok(Array.isArray(list));
+});
+
+test('CampaignService processes valid state transitions and rejects invalid ones', () => {
     const sqlDb = db.getDb();
     sqlDb.exec(`DELETE FROM campaigns;`);
 

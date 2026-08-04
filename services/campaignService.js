@@ -3,6 +3,10 @@ const AudienceService = require('./audienceService');
 const { CampaignWorker } = require('./campaignWorker');
 
 class CampaignService {
+    static listCampaigns() {
+        return db.listCampaigns();
+    }
+
     static createDraft(name, messageConfig, campaignSettings, createdBy) {
         const id = db.createCampaign(name, messageConfig, campaignSettings, createdBy);
         db.logCampaignEvent(id, 'CREATED', `Draft campaign created by admin ${createdBy}`);
