@@ -26,9 +26,6 @@ class CampaignService {
     static updateDraft(id, name, messageConfig, campaignSettings) {
         const campaign = db.getCampaign(id);
         if (!campaign) throw new Error('Campaign not found');
-        if (campaign.status !== 'DRAFT' && campaign.status !== 'READY') {
-            throw new Error('Can only edit campaigns in DRAFT or READY status');
-        }
 
         const updates = { name, message_config: messageConfig, campaign_settings: campaignSettings };
         db.updateCampaign(id, updates);

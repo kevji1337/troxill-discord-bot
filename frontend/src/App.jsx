@@ -311,12 +311,6 @@ function CampaignsListView({ onSelectCampaign, onCreateNew, onEditCampaign }) {
 
   const handleEdit = (e, campaign) => {
     e.stopPropagation();
-    if (campaign.status !== 'DRAFT' && campaign.status !== 'READY') {
-      if (confirm(`Кампания находится в статусе "${campaign.status}". Чтобы отредактировать её настройки, будет создана новая черновик-копия. Продолжить?`)) {
-        handleDuplicate(e, campaign);
-      }
-      return;
-    }
     onEditCampaign({ ...campaign, isEditMode: true });
   };
 
@@ -802,11 +796,9 @@ function CampaignDetailsView({ campaignId, onBack, onEditCampaign }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          {(campaign.status === 'DRAFT' || campaign.status === 'READY') && (
-            <button className="btn btn-secondary" onClick={() => onEditCampaign({ ...campaign, isEditMode: true })}>
-              ✏️ Изменить
-            </button>
-          )}
+          <button className="btn btn-secondary" onClick={() => onEditCampaign({ ...campaign, isEditMode: true })}>
+            ✏️ Изменить
+          </button>
           <button className="btn btn-secondary" onClick={() => {
             fetch(`/api/campaigns/${campaign.id}/duplicate`, { method: 'POST' })
               .then(res => res.json())
