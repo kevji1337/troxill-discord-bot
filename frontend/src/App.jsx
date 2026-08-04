@@ -3,12 +3,30 @@ import React, { useState, useEffect } from 'react';
 export default function App() {
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    const hash = window.location.hash.replace('#', '').trim();
+    if (['dashboard', 'campaigns', 'exclusions', 'audit'].includes(hash)) {
+      return hash;
+    }
+    const saved = localStorage.getItem('activeTab');
+    if (['dashboard', 'campaigns', 'exclusions', 'audit'].includes(saved)) {
+      return saved;
+    }
+    return 'dashboard';
+  });
   const [errorMsg, setErrorMsg] = useState('');
   
   // Dynamic navigation inside campaigns
   const [selectedCampaignId, setSelectedCampaignId] = useState(null);
   const [builderData, setBuilderData] = useState(null); // null when closed, object when building/editing
+
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    localStorage.setItem('activeTab', tab);
+    window.location.hash = tab;
+    setSelectedCampaignId(null);
+    setBuilderData(null);
+  };
 
   // Expose URL queries (like ?error=unauthorized)
   useEffect(() => {
@@ -41,7 +59,7 @@ export default function App() {
       .then(res => res.json())
       .then(() => {
         setUser(null);
-        setActiveTab('dashboard');
+        switchTab('dashboard');
       });
   };
 
@@ -65,16 +83,16 @@ export default function App() {
           <span className="brand-name">Troxill Bot</span>
         </div>
         <ul className="nav-links">
-          <li className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setSelectedCampaignId(null); setBuilderData(null); }}>
+          <li className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => switchTab('dashboard')}>
             Dashboard
           </li>
-          <li className={`nav-item ${activeTab === 'campaigns' ? 'active' : ''}`} onClick={() => { setActiveTab('campaigns'); setSelectedCampaignId(null); setBuilderData(null); }}>
+          <li className={`nav-item ${activeTab === 'campaigns' ? 'active' : ''}`} onClick={() => switchTab('campaigns')}>
             Кампании
           </li>
-          <li className={`nav-item ${activeTab === 'exclusions' ? 'active' : ''}`} onClick={() => { setActiveTab('exclusions'); setSelectedCampaignId(null); setBuilderData(null); }}>
+          <li className={`nav-item ${activeTab === 'exclusions' ? 'active' : ''}`} onClick={() => switchTab('exclusions')}>
             Исключения
           </li>
-          <li className={`nav-item ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => { setActiveTab('audit'); setSelectedCampaignId(null); setBuilderData(null); }}>
+          <li className={`nav-item ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => switchTab('audit')}>
             Аудит лог
           </li>
         </ul>
