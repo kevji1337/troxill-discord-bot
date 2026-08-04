@@ -65,6 +65,13 @@ CREATE TABLE IF NOT EXISTS admin_audit_logs (
     timestamp INTEGER NOT NULL
 );
 
+-- Web session store for persistent login sessions
+CREATE TABLE IF NOT EXISTS web_sessions (
+    sid TEXT PRIMARY KEY,
+    sess TEXT NOT NULL,
+    expired_at INTEGER NOT NULL
+);
+
 -- Indices for faster lookup
 CREATE INDEX IF NOT EXISTS idx_recipients_status ON campaign_recipients(campaign_id, status);
 CREATE INDEX IF NOT EXISTS idx_recipients_retry ON campaign_recipients(campaign_id, status, next_retry_at);

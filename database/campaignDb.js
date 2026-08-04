@@ -292,5 +292,21 @@ module.exports = {
             if (l.metadata) l.metadata = JSON.parse(l.metadata);
             return l;
         });
+    },
+
+    // SESSIONS
+    getSession: (sid) => {
+        const db = getDb();
+        return db.prepare('SELECT sess, expired_at FROM web_sessions WHERE sid = ?').get(sid);
+    },
+
+    setSession: (sid, sess, expiredAt) => {
+        const db = getDb();
+        return db.prepare('INSERT OR REPLACE INTO web_sessions (sid, sess, expired_at) VALUES (?, ?, ?)').run(sid, sess, expiredAt);
+    },
+
+    destroySession: (sid) => {
+        const db = getDb();
+        return db.prepare('DELETE FROM web_sessions WHERE sid = ?').run(sid);
     }
 };

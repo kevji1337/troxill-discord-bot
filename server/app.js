@@ -52,17 +52,56 @@ function startAdminServer(client) {
     // JSON body parsing
     app.use(express.json());
 
-    // Session configurations
+    // SQLite session store implementation for session persistence across server restarts
+    class SqliteSessionStore extends session.Store {
+        get(sid, callback) {
+            try {
+                const row = db.getSession(sid);
+                if (!row) return callback(null, null);
+                if (Date.now() > row.expired_at) {
+                    db.destroySession(sid);
+                    return callback(null, null);
+                }
+                const sess = JSON.parse(row.sess);
+                return callback(null, sess);
+            } catch (err) {
+                return callback(err);
+            }
+        }
+
+        set(sid, sessionData, callback) {
+            try {
+                const maxAge = sessionData.cookie?.maxAge || 30 * 24 * 60 * 60 * 1000;
+                const expiredAt = Date.now() + maxAge;
+                db.setSession(sid, JSON.stringify(sessionData), expiredAt);
+                return callback(null);
+            } catch (err) {
+                return callback(err);
+            }
+        }
+
+        destroy(sid, callback) {
+            try {
+                db.destroySession(sid);
+                return callback(null);
+            } catch (err) {
+                return callback(err);
+            }
+        }
+    }
+
+    // Session configurations (persisted in SQLite DB for 30 days)
     app.use(session({
         name: 'sid',
         secret: sessionSecret,
+        store: new SqliteSessionStore(),
         resave: false,
         saveUninitialized: false,
         cookie: {
-            secure: process.env.NODE_ENV === 'production', // true in production
+            secure: false,
             httpOnly: true,
             sameSite: 'lax',
-            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days persistence
         }
     }));
 
