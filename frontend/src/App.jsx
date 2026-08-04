@@ -54,19 +54,7 @@ export default function App() {
   }
 
   if (!user) {
-    return (
-      <div className="login-container">
-        <div className="login-card animate-fade">
-          <div className="login-logo">T</div>
-          <h1 className="login-title">Troxill Admin</h1>
-          <p className="login-subtitle">Управление DM-кампаниями и рассылками</p>
-          {errorMsg && <div className="alert alert-danger">{errorMsg}</div>}
-          <a href="/api/auth/login" className="btn btn-primary" style={{ width: '100%', textDecoration: 'none' }}>
-            Войти через Discord
-          </a>
-        </div>
-      </div>
-    );
+    return <LoginCard user={user} setUser={setUser} initialError={errorMsg} />;
   }
 
   return (
@@ -1109,3 +1097,147 @@ function AuditView() {
     </div>
   );
 }
+
+// -------------------------------------------------------------
+// LOGIN CARD COMPONENT
+// -------------------------------------------------------------
+function LoginCard({ user, setUser, initialError }) {
+  const [authMethod, setAuthMethod] = useState('password'); // 'password' | 'code'
+  const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [errorMsg, setErrorMsg] = useState(initialError || '');
+  const [loading, setLoading] = useState(false);
+
+  const handlePasswordLogin = (e) => {
+    e.preventDefault();
+    if (!password) return;
+    setLoading(true);
+    setErrorMsg('');
+
+    fetch('/api/auth/login-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    })
+      .then(res => res.json())
+      .then(data => {
+        setLoading(false);
+        if (data.success) {
+          setUser(data.user);
+        } else {
+          setErrorMsg(data.error || 'Ошибка входа по паролю');
+        }
+      })
+      .catch(() => {
+        setLoading(false);
+        setErrorMsg('Ошибка соединения с сервером');
+      });
+  };
+
+  const handleCodeLogin = (e) => {
+    e.preventDefault();
+    if (!code) return;
+    setLoading(true);
+    setErrorMsg('');
+
+    fetch('/api/auth/login-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    })
+      .then(res => res.json())
+      .then(data => {
+        setLoading(false);
+        if (data.success) {
+          setUser(data.user);
+        } else {
+          setErrorMsg(data.error || 'Неверный или истекший код');
+        }
+      })
+      .catch(() => {
+        setLoading(false);
+        setErrorMsg('Ошибка соединения с сервером');
+      });
+  };
+
+  return (
+    <div className="login-container">
+      <div className="login-card animate-fade" style={{ maxWidth: '420px', width: '100%' }}>
+        <div className="login-logo">T</div>
+        <h1 className="login-title">Troxill Admin</h1>
+        <p className="login-subtitle">Панель управления рассылками бота</p>
+
+        {errorMsg && <div className="alert alert-danger" style={{ marginBottom: '16px', fontSize: '0.85rem' }}>{errorMsg}</div>}
+
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', background: 'var(--bg-tertiary)', padding: '4px', borderRadius: 'var(--radius-md)' }}>
+          <button 
+            type="button"
+            className={`btn ${authMethod === 'password' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ flex: 1, padding: '8px 12px', fontSize: '0.85rem' }}
+            onClick={() => { setAuthMethod('password'); setErrorMsg(''); }}
+          >
+            🔑 По паролю
+          </button>
+          <button 
+            type="button"
+            className={`btn ${authMethod === 'code' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ flex: 1, padding: '8px 12px', fontSize: '0.85rem' }}
+            onClick={() => { setAuthMethod('code'); setErrorMsg(''); }}
+          >
+            💬 Код Discord
+          </button>
+        </div>
+
+        {authMethod === 'password' && (
+          <form onSubmit={handlePasswordLogin}>
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label className="form-label">Пароль администратора</label>
+              <input 
+                className="form-control" 
+                type="password" 
+                placeholder="Введите пароль из .env" 
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <button className="btn btn-primary" type="submit" style={{ width: '100%' }} disabled={loading}>
+              {loading ? 'Проверка...' : 'Войти'}
+            </button>
+          </form>
+        )}
+
+        {authMethod === 'code' && (
+          <form onSubmit={handleCodeLogin}>
+            <div className="form-group" style={{ marginBottom: '12px' }}>
+              <label className="form-label">6-значный одноразовый код</label>
+              <input 
+                className="form-control" 
+                type="text" 
+                placeholder="Например: 739104" 
+                value={code}
+                maxLength={6}
+                onChange={e => setCode(e.target.value)}
+                required
+                style={{ textAlign: 'center', letterSpacing: '4px', fontSize: '1.2rem', fontWeight: 'bold' }}
+              />
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.4' }}>
+              💡 Введите команду <code>/admin-login</code> в Discord-боте на вашем сервере, чтобы получить код.
+            </p>
+            <button className="btn btn-primary" type="submit" style={{ width: '100%' }} disabled={loading}>
+              {loading ? 'Проверка...' : 'Войти по коду'}
+            </button>
+          </form>
+        )}
+
+        <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '16px', textAlign: 'center' }}>
+          <a href="/api/auth/login" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', textDecoration: 'underline' }}>
+            Войти через Discord OAuth2 (если настроен)
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+

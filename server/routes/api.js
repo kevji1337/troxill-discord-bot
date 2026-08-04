@@ -7,6 +7,7 @@ const MessageBuilder = require('../../services/messageBuilder');
 const { CampaignWorker } = require('../../services/campaignWorker');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { isSnowflake, parseSnowflakeList } = require('../../utils/runtime');
+const { verifyPasscode } = require('../../services/passcodeStore');
 
 // Input helper validator
 function validateCampaignInput(req, res, next) {
@@ -85,6 +86,42 @@ router.get('/auth/me', (req, res) => {
         return res.json({ loggedIn: true, user: req.session.user });
     }
     return res.json({ loggedIn: false });
+});
+
+router.post('/auth/login-password', (req, res) => {
+    const { password } = req.body;
+    const expectedPassword = String(process.env.ADMIN_PASSWORD || 'troxill2026').trim();
+
+    if (!password || String(password).trim() !== expectedPassword) {
+        return res.status(401).json({ error: 'Неверный пароль администратора' });
+    }
+
+    const user = {
+        id: 'admin',
+        username: 'admin',
+        globalName: 'Администратор',
+        isAdmin: true
+    };
+
+    req.session.user = user;
+    db.logAudit('admin', 'login_password', null, { ip: req.ip });
+    return res.json({ success: true, user });
+});
+
+router.post('/auth/login-code', (req, res) => {
+    const { code } = req.body;
+    if (!code || String(code).trim().length === 0) {
+        return res.status(400).json({ error: 'Введите одноразовый код' });
+    }
+
+    const user = verifyPasscode(code);
+    if (!user) {
+        return res.status(401).json({ error: 'Неверный или истекший код входа' });
+    }
+
+    req.session.user = user;
+    db.logAudit(user.id, 'login_code', null, { username: user.username, ip: req.ip });
+    return res.json({ success: true, user });
 });
 
 router.post('/auth/logout', (req, res) => {
