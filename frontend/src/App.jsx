@@ -887,14 +887,14 @@ function CampaignDetailsView({ campaignId, onBack, onEditCampaign }) {
               </>
             )}
 
-            {campaign.status === 'PAUSED' && (
+            {(campaign.status === 'PAUSED' || campaign.status === 'STOPPED') && (
               <>
                 <button className="btn btn-success" onClick={() => handleAction('resume')} style={{ flex: 1 }}>
-                  ▶️ Продолжить рассылку
+                  ▶️ {campaign.status === 'STOPPED' ? 'Продолжить остановленную рассылку' : 'Возобновить рассылку'}
                 </button>
-                <button className="btn btn-danger" onClick={() => handleAction('stop')}>
-                  🛑 Стоп
-                </button>
+                <a href={`/api/campaigns/${campaign.id}/export`} className="btn btn-secondary" style={{ textDecoration: 'none' }}>
+                  📥 Отчет CSV
+                </a>
               </>
             )}
 
@@ -912,7 +912,7 @@ function CampaignDetailsView({ campaignId, onBack, onEditCampaign }) {
               </>
             )}
 
-            {(campaign.status === 'COMPLETED' || campaign.status === 'STOPPED' || campaign.status === 'FAILED') && (
+            {(campaign.status === 'COMPLETED' || campaign.status === 'FAILED') && (
               <a href={`/api/campaigns/${campaign.id}/export`} className="btn btn-secondary" style={{ flex: 1, textDecoration: 'none' }}>
                 📥 Выгрузить CSV отчет
               </a>

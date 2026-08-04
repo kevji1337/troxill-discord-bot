@@ -93,8 +93,8 @@ class CampaignService {
     static resumeCampaign(id, client) {
         const campaign = db.getCampaign(id);
         if (!campaign) throw new Error('Campaign not found');
-        if (campaign.status !== 'PAUSED' && campaign.status !== 'AWAITING_CONFIRMATION') {
-            throw new Error('Can only resume campaigns that are PAUSED or AWAITING_CONFIRMATION');
+        if (campaign.status !== 'PAUSED' && campaign.status !== 'AWAITING_CONFIRMATION' && campaign.status !== 'STOPPED') {
+            throw new Error('Can only resume campaigns that are PAUSED, AWAITING_CONFIRMATION, or STOPPED');
         }
 
         db.updateCampaign(id, { status: 'RUNNING' });
