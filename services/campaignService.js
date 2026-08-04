@@ -13,6 +13,16 @@ class CampaignService {
         return id;
     }
 
+    static duplicateCampaign(id, createdBy) {
+        const original = db.getCampaign(id);
+        if (!original) throw new Error('Campaign not found');
+
+        const newName = `${original.name} (Копия)`;
+        const newId = db.createCampaign(newName, original.message_config, original.campaign_settings, createdBy);
+        db.logCampaignEvent(newId, 'DUPLICATED', `Duplicated from campaign #${id}`);
+        return newId;
+    }
+
     static updateDraft(id, name, messageConfig, campaignSettings) {
         const campaign = db.getCampaign(id);
         if (!campaign) throw new Error('Campaign not found');

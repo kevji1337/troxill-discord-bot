@@ -8,7 +8,7 @@ export default function App() {
   
   // Dynamic navigation inside campaigns
   const [selectedCampaignId, setSelectedCampaignId] = useState(null);
-  const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
+  const [builderData, setBuilderData] = useState(null); // null when closed, object when building/editing
 
   // Expose URL queries (like ?error=unauthorized)
   useEffect(() => {
@@ -65,16 +65,16 @@ export default function App() {
           <span className="brand-name">Troxill Bot</span>
         </div>
         <ul className="nav-links">
-          <li className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setSelectedCampaignId(null); setIsCreatingCampaign(false); }}>
+          <li className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setSelectedCampaignId(null); setBuilderData(null); }}>
             Dashboard
           </li>
-          <li className={`nav-item ${activeTab === 'campaigns' ? 'active' : ''}`} onClick={() => { setActiveTab('campaigns'); setSelectedCampaignId(null); setIsCreatingCampaign(false); }}>
+          <li className={`nav-item ${activeTab === 'campaigns' ? 'active' : ''}`} onClick={() => { setActiveTab('campaigns'); setSelectedCampaignId(null); setBuilderData(null); }}>
             Кампании
           </li>
-          <li className={`nav-item ${activeTab === 'exclusions' ? 'active' : ''}`} onClick={() => { setActiveTab('exclusions'); setSelectedCampaignId(null); setIsCreatingCampaign(false); }}>
+          <li className={`nav-item ${activeTab === 'exclusions' ? 'active' : ''}`} onClick={() => { setActiveTab('exclusions'); setSelectedCampaignId(null); setBuilderData(null); }}>
             Исключения
           </li>
-          <li className={`nav-item ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => { setActiveTab('audit'); setSelectedCampaignId(null); setIsCreatingCampaign(false); }}>
+          <li className={`nav-item ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => { setActiveTab('audit'); setSelectedCampaignId(null); setBuilderData(null); }}>
             Аудит лог
           </li>
         </ul>
@@ -97,22 +97,25 @@ export default function App() {
       </nav>
       <main className="main-content">
         {activeTab === 'dashboard' && <DashboardView />}
-        {activeTab === 'campaigns' && !selectedCampaignId && !isCreatingCampaign && (
+        {activeTab === 'campaigns' && !selectedCampaignId && !builderData && (
           <CampaignsListView 
             onSelectCampaign={setSelectedCampaignId} 
-            onCreateNew={() => setIsCreatingCampaign(true)} 
+            onCreateNew={() => setBuilderData({ isNew: true })} 
+            onEditCampaign={(c) => { setSelectedCampaignId(null); setBuilderData(c); }}
           />
         )}
-        {activeTab === 'campaigns' && selectedCampaignId && (
+        {activeTab === 'campaigns' && selectedCampaignId && !builderData && (
           <CampaignDetailsView 
             campaignId={selectedCampaignId} 
             onBack={() => setSelectedCampaignId(null)} 
+            onEditCampaign={(c) => { setSelectedCampaignId(null); setBuilderData(c); }}
           />
         )}
-        {activeTab === 'campaigns' && isCreatingCampaign && (
+        {activeTab === 'campaigns' && builderData && (
           <CampaignBuilderView 
-            onBack={() => setIsCreatingCampaign(false)} 
-            onCreated={(id) => { setIsCreatingCampaign(false); setSelectedCampaignId(id); }} 
+            initialData={builderData}
+            onBack={() => setBuilderData(null)} 
+            onCreated={(id) => { setBuilderData(null); setSelectedCampaignId(id); }} 
           />
         )}
         {activeTab === 'exclusions' && <ExclusionsView />}
@@ -240,21 +243,25 @@ function DashboardView() {
 // -------------------------------------------------------------
 // CAMPAIGNS LIST VIEW
 // -------------------------------------------------------------
-function CampaignsListView({ onSelectCampaign, onCreateNew }) {
+function CampaignsListView({ onSelectCampaign, onCreateNew, onEditCampaign }) {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const reloadCampaigns = () => {
     fetch('/api/campaigns')
       .then(res => res.json())
       .then(data => {
         setCampaigns(data);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    reloadCampaigns();
   }, []);
 
   const handleDelete = (e, id) => {
-    e.stopPropagation(); // Avoid triggering details select
+    e.stopPropagation();
     if (!confirm('Вы действительно хотите удалить эту кампанию?')) return;
 
     fetch(`/api/campaigns/${id}`, { method: 'DELETE' })
@@ -262,6 +269,37 @@ function CampaignsListView({ onSelectCampaign, onCreateNew }) {
       .then(() => {
         setCampaigns(campaigns.filter(c => c.id !== id));
       });
+  };
+
+  const handleDuplicate = (e, campaign) => {
+    e.stopPropagation();
+    fetch(`/api/campaigns/${campaign.id}/duplicate`, { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          onEditCampaign({
+            id: data.id,
+            name: `${campaign.name} (Копия)`,
+            message_config: campaign.message_config,
+            campaign_settings: campaign.campaign_settings,
+            status: 'DRAFT',
+            isEditMode: true
+          });
+        } else {
+          alert('Ошибка дублирования: ' + data.error);
+        }
+      });
+  };
+
+  const handleEdit = (e, campaign) => {
+    e.stopPropagation();
+    if (campaign.status !== 'DRAFT' && campaign.status !== 'READY') {
+      if (confirm(`Кампания находится в статусе "${campaign.status}". Чтобы отредактировать её настройки, будет создана новая черновик-копия. Продолжить?`)) {
+        handleDuplicate(e, campaign);
+      }
+      return;
+    }
+    onEditCampaign({ ...campaign, isEditMode: true });
   };
 
   if (loading) return <div>Загрузка кампаний...</div>;
@@ -323,9 +361,15 @@ function CampaignsListView({ onSelectCampaign, onCreateNew }) {
                   </td>
                   <td><span className="meta-code">{c.created_by}</span></td>
                   <td>{new Date(c.created_at).toLocaleDateString()}</td>
-                  <td>
-                    <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={(e) => handleDelete(e, c.id)}>
-                      Удалить
+                  <td onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: '6px' }}>
+                    <button className="btn btn-secondary" style={{ padding: '6px 10px', fontSize: '0.8rem' }} onClick={(e) => handleEdit(e, c)} title="Редактировать">
+                      ✏️ Изменить
+                    </button>
+                    <button className="btn btn-secondary" style={{ padding: '6px 10px', fontSize: '0.8rem' }} onClick={(e) => handleDuplicate(e, c)} title="Создать копию">
+                      📋 Копия
+                    </button>
+                    <button className="btn btn-danger" style={{ padding: '6px 10px', fontSize: '0.8rem' }} onClick={(e) => handleDelete(e, c.id)} title="Удалить">
+                      🗑️
                     </button>
                   </td>
                 </tr>
@@ -346,26 +390,28 @@ function CampaignsListView({ onSelectCampaign, onCreateNew }) {
 // -------------------------------------------------------------
 // CAMPAIGN BUILDER VIEW (Wizard)
 // -------------------------------------------------------------
-function CampaignBuilderView({ onBack, onCreated }) {
-  const [name, setName] = useState('');
-  const [content, setContent] = useState('');
-  const [embedTitle, setEmbedTitle] = useState('');
-  const [embedDesc, setEmbedDesc] = useState('');
-  const [embedImage, setEmbedImage] = useState('');
-  const [embedFooter, setEmbedFooter] = useState('');
+function CampaignBuilderView({ onBack, onCreated, initialData }) {
+  const isEditMode = Boolean(initialData?.id && initialData?.isEditMode);
+
+  const [name, setName] = useState(initialData?.name || '');
+  const [content, setContent] = useState(initialData?.message_config?.content || '');
+  const [embedTitle, setEmbedTitle] = useState(initialData?.message_config?.embed?.title || '');
+  const [embedDesc, setEmbedDesc] = useState(initialData?.message_config?.embed?.description || '');
+  const [embedImage, setEmbedImage] = useState(initialData?.message_config?.embed?.image || '');
+  const [embedFooter, setEmbedFooter] = useState(initialData?.message_config?.embed?.footer || '');
 
   // Link Buttons list
-  const [buttons, setButtons] = useState([]);
+  const [buttons, setButtons] = useState(initialData?.message_config?.buttons || []);
   
   // Filter settings
-  const [excludeUserIds, setExcludeUserIds] = useState('');
-  const [excludeRoleIds, setExcludeRoleIds] = useState('');
-  const [excludeOwner, setExcludeOwner] = useState(true);
+  const [excludeUserIds, setExcludeUserIds] = useState(initialData?.campaign_settings?.filters?.excludeUserIds || '');
+  const [excludeRoleIds, setExcludeRoleIds] = useState(initialData?.campaign_settings?.filters?.excludeRoleIds || '');
+  const [excludeOwner, setExcludeOwner] = useState(initialData?.campaign_settings?.filters?.excludeOwner ?? true);
 
   // Settings
-  const [waveSize, setWaveSize] = useState(50);
-  const [delayMs, setDelayMs] = useState(2000);
-  const [isContinuous, setIsContinuous] = useState(false);
+  const [waveSize, setWaveSize] = useState(initialData?.campaign_settings?.waveSize || 50);
+  const [delayMs, setDelayMs] = useState(initialData?.campaign_settings?.delayMs || 2000);
+  const [isContinuous, setIsContinuous] = useState(initialData?.campaign_settings?.isContinuous || false);
 
   // Preview & Tests states
   const [preview, setPreview] = useState(null);
@@ -466,17 +512,20 @@ function CampaignBuilderView({ onBack, onCreated }) {
       alert('Введите название кампании');
       return;
     }
-    fetch('/api/campaigns', {
-      method: 'POST',
+    const url = isEditMode ? `/api/campaigns/${initialData.id}` : '/api/campaigns';
+    const method = isEditMode ? 'PUT' : 'POST';
+
+    fetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(getPayload())
     })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          onCreated(data.id);
+          onCreated(isEditMode ? initialData.id : data.id);
         } else {
-          alert('Ошибка создания: ' + data.error);
+          alert('Ошибка сохранения: ' + data.error);
         }
       });
   };
@@ -485,7 +534,7 @@ function CampaignBuilderView({ onBack, onCreated }) {
     <div className="animate-fade" style={{ maxWidth: '900px' }}>
       <div style={{ display: 'flex', gap: '20px', alignItems: 'center', marginBottom: '32px' }}>
         <button className="btn btn-secondary" onClick={onBack}>← Назад</button>
-        <h1 style={{ fontSize: '2rem' }}>Создать новую кампанию</h1>
+        <h1 style={{ fontSize: '2rem' }}>{isEditMode ? `Редактирование кампании #${initialData.id}` : 'Создать новую кампанию'}</h1>
       </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
@@ -653,7 +702,7 @@ function CampaignBuilderView({ onBack, onCreated }) {
         {/* SUBMIT BUTTON */}
         <div style={{ display: 'flex', gap: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
           <button className="btn btn-success" style={{ flex: 1 }} onClick={handleCreate}>
-            💾 Создать кампанию (как Черновик)
+            {isEditMode ? '💾 Сохранить изменения' : '💾 Создать кампанию (как Черновик)'}
           </button>
           <button className="btn btn-secondary" onClick={onBack}>Отмена</button>
         </div>
@@ -666,7 +715,7 @@ function CampaignBuilderView({ onBack, onCreated }) {
 // -------------------------------------------------------------
 // CAMPAIGN DETAILS VIEW (Progress and worker control)
 // -------------------------------------------------------------
-function CampaignDetailsView({ campaignId, onBack }) {
+function CampaignDetailsView({ campaignId, onBack, onEditCampaign }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(false);
@@ -722,15 +771,44 @@ function CampaignDetailsView({ campaignId, onBack }) {
 
   return (
     <div className="animate-fade">
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'center', marginBottom: '32px' }}>
-        <button className="btn btn-secondary" onClick={onBack}>← К списку</button>
-        <div>
-          <h1 style={{ fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {campaign.name}
-            <span className={`badge badge-${campaign.status.toLowerCase().split('_')[0]}`}>
-              {campaign.status}
-            </span>
-          </h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <button className="btn btn-secondary" onClick={onBack}>← К списку</button>
+          <div>
+            <h1 style={{ fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {campaign.name}
+              <span className={`badge badge-${campaign.status.toLowerCase().split('_')[0]}`}>
+                {campaign.status}
+              </span>
+            </h1>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {(campaign.status === 'DRAFT' || campaign.status === 'READY') && (
+            <button className="btn btn-secondary" onClick={() => onEditCampaign({ ...campaign, isEditMode: true })}>
+              ✏️ Изменить
+            </button>
+          )}
+          <button className="btn btn-secondary" onClick={() => {
+            fetch(`/api/campaigns/${campaign.id}/duplicate`, { method: 'POST' })
+              .then(res => res.json())
+              .then(data => {
+                if (data.success) {
+                  onEditCampaign({
+                    id: data.id,
+                    name: `${campaign.name} (Копия)`,
+                    message_config: campaign.message_config,
+                    campaign_settings: campaign.campaign_settings,
+                    status: 'DRAFT',
+                    isEditMode: true
+                  });
+                } else {
+                  alert('Ошибка дублирования: ' + data.error);
+                }
+              });
+          }}>
+            📋 Создать копию
+          </button>
         </div>
       </div>
 

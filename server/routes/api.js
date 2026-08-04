@@ -324,6 +324,21 @@ router.delete('/campaigns/:id', requireAuth, requireAdmin, (req, res) => {
     }
 });
 
+router.post('/campaigns/:id/duplicate', requireAuth, requireAdmin, (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+        return res.status(400).json({ error: 'Invalid campaign ID' });
+    }
+
+    try {
+        const newId = CampaignService.duplicateCampaign(id, req.session.user.id);
+        db.logAudit(req.session.user.id, 'campaign_duplicate', String(id), { newId });
+        return res.json({ success: true, id: newId });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+});
+
 router.post('/campaigns/:id/finalize', requireAuth, requireAdmin, async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) {
